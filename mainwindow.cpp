@@ -4,9 +4,6 @@
 #include <QPainterPath>
 #include <math.h>
 
-#define MAX_SHOW_DISTANCE  200
-#define MAX_OBS_DISTANCE   60
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -70,12 +67,16 @@ void MainWindow::openSerialPort()
                                          .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
                                          .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl).arg(p.fabricante));
         drawBackground();
-        drawRadar();
     }
     else{
         QMessageBox::warning(this,"Menu Conectar","No se pudo abrir el puerto Serie!!!!");
     }
 }
+
+
+
+
+
 
 //Tareas a realizar cuando se desconecta
 void MainWindow::closeSerialPort()
@@ -196,26 +197,6 @@ void MainWindow::decodeData()
             ui->aliveEdit->setText("I´M ALIVE");
 
             break;
-        case GET_IR: //Sensores de linea
-            myWord.ui8[0] = rxData.payLoad[2];
-            myWord.ui8[1] = rxData.payLoad[3];
-            valueIR1 = myWord.ui16[0];
-            myWord.ui8[0] = rxData.payLoad[4];
-            myWord.ui8[1] = rxData.payLoad[5];
-            valueIR2 = myWord.ui16[0];
-            ui->IRScreen1->display(QString().number(valueIR1,10));
-            ui->IRScreen2->display(QString().number(valueIR2,10));
-            paso = 3;
-            break;
-        case GET_DISTANCE: //Distancia
-            myWord.ui8[0] = rxData.payLoad[2];
-            myWord.ui8[1] = rxData.payLoad[3];
-            myWord.ui8[2] = rxData.payLoad[4];
-            myWord.ui8[3] = rxData.payLoad[5];
-            distancia_us = myWord.ui32/58;
-            ui->distanceScreen->display(QString().number(distancia_us,10));
-            paso = 2;
-            break;
         case GET_SPEED: //Velocidades de las ruedas en pulsos por segundo
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
@@ -227,7 +208,7 @@ void MainWindow::decodeData()
             myWord.ui8[1] = rxData.payLoad[7];
             myWord.ui8[2] = rxData.payLoad[8];
             myWord.ui8[3] = rxData.payLoad[9];
-            speedM2 = 2*myWord.ui32;
+            speedM2 = myWord.ui32;
 
             ui->speedScreen1->display(QString().number(speedM1,10));
             ui->speedScreen2->display(QString().number(speedM2,10));
@@ -236,11 +217,11 @@ void MainWindow::decodeData()
             break;
         case SET_POWER:
             break;
-        case SET_SERVO:
-            break;
         default:
             break;
     }
+    estadoComandos = GET_SPEED;
+    sendData();
 }
 
 //Enviar datos, elaborar protocolo
@@ -347,17 +328,6 @@ void MainWindow::getAll(){
             break;
     }
 
-    drawRadar();
-
-}
-
-
-
-//Probar servo
-void MainWindow::on_servoButton_clicked()
-{
-    estadoComandos = SET_SERVO;
-    sendData();
 }
 
 //Probar motores
@@ -387,88 +357,6 @@ void MainWindow::on_pushButton_3_clicked()
 {
     estadoComandos = GET_IR;
     sendData();
-}
-
-//Dibujar radar
-void MainWindow::drawRadar(){
-    QPainter painter(myPaintBox->getCanvas());
-    QPen pen;
-    QFont myFont;
-    myFont.setFixedPitch(true);
-    int posx, posy;
-    painter.setRenderHint(QPainter::HighQualityAntialiasing);
-    int16_t w = myPaintBox->width(), h = myPaintBox->height();
-    QPoint center(0,0);
-
-    pen.setColor(Qt::white);
-    painter.setPen(pen);
-    painter.drawText(10,250,"Distancia: "+ QString().number(distancia_us,3,3) +"");
-
-    painter.translate(w/2,h-50);
-    painter.rotate(-135);
-    posxT = abs(MAX_SHOW_DISTANCE*cos((auxAngulo-45)*3.14/180));
-    posyT = abs(MAX_SHOW_DISTANCE*sin((auxAngulo-45)*3.14/180));
-
-    if(posxT <= 20)
-        count = 1;
-    if(posyT <= 20)
-        count = 0;
-
-    //PATH
-    path->moveTo(center);
-    path->lineTo(MAX_SHOW_DISTANCE,0);
-    path->cubicTo(MAX_SHOW_DISTANCE,h/3+10,h/3+10,MAX_SHOW_DISTANCE,0,MAX_SHOW_DISTANCE);
-    path->closeSubpath();
-
-
-    //PATH2
-    for(int i=0;i<20;i++){
-        path2->moveTo(0+i*10,0);
-        path2->cubicTo(0+i*10,(0+i*10)/2,(0+i*10)/2,0+i*10,0,0+i*10);
-    }
-    pen.setWidth(2);
-    pen.setColor(Qt::green);
-    painter.setPen(pen);
-    QConicalGradient cgrad(center,-auxAngulo-45);
-    if(count == 1){
-        cgrad.setColorAt(0,Qt::darkGreen);
-        cgrad.setColorAt(0.1,Qt::black);
-    }else{
-        cgrad.setColorAt(1,Qt::darkGreen);
-        cgrad.setColorAt(0.9,Qt::black);
-    }
-
-//    DRAW PATH'S
-    painter.fillPath(*path,cgrad);
-    painter.drawPath(*path);
-    pen.setWidth(1);
-    pen.setColor(Qt::darkGray);
-    painter.setPen(pen);
-    painter.setRenderHints(QPainter::HighQualityAntialiasing);
-    painter.drawPath(*path2);
-    pen.setWidth(3);
-    if(distancia_us < 140){
-        pen.setColor(Qt::red);
-        painter.setPen(pen);
-        painter.fillPath(*path3,Qt::red);
-        painter.drawPath(*path3);
-        posx = abs((50+distancia_us)*cos((auxAngulo+45)*3.14/180));
-        posy = abs((50+distancia_us)*sin((auxAngulo+45)*3.14/180));
-        path3->addEllipse(posx,posy,2,2);
-    }
-
-
-    if(posyT < 20 || posxT < 20){
-        path3->clear();
-        path->clear();
-        path2->clear();
-        painter.fillPath(*path,Qt::black);
-        painter.drawPath(*path);
-    }
-
-
-    myPaintBox->update();
-
 }
 
 //Dibujar velocimetro
@@ -590,15 +478,6 @@ void MainWindow::drawBackground(){
 
     //Dibujar
     speedPaintBox->update();
-}
-
-
-
-//Setear angulo de servo
-void MainWindow::on_dialServo_valueChanged(int value)
-{
-    anguloServo = value;
-    ui->lcdAngulo->display(QString().number(value));
 }
 
 //Setear potencia de motor 1
