@@ -34,8 +34,6 @@ private slots:
 
     void sendData();
 
-    void on_servoButton_clicked();
-
     void on_powerButton_clicked();
 
     void on_pushButton_clicked();
@@ -46,26 +44,22 @@ private slots:
 
     void getAll();
 
-    void drawRadar();
-
-    void drawDash();
-
     void drawBackground();
-
-    void on_dialServo_valueChanged(int value);
 
     void on_dialPower1_valueChanged(int value);
 
     void on_dialPower2_valueChanged(int value);
 
-    void on_botonAlive_clicked();
-
     void on_botonAll_clicked();
+
+    void PaintGrafica();
+
+    void PaintPulsos();
 
 private:
     Ui::MainWindow *ui;
     QSerialPort *mySerial;
-    QTimer *myTimer, *servoTimer, *distanceTimer;
+    QTimer *myTimer,*timer2;
     QPaintBox *myPaintBox, *speedPaintBox;
     SettingsDialog *mySettings;
     QLabel *estado, *marca;
@@ -121,7 +115,7 @@ private:
         float f32;
         int i32;
         int8_t i8[4];
-        unsigned int ui32;        
+        unsigned int ui32;
         unsigned short ui16[2];
         short i16[2];
         uint8_t ui8[4];
@@ -152,8 +146,8 @@ private:
     _bGeneralFlags myFlags;
 
     int32_t powerM1 = 0, powerM2 = 0;
-    uint32_t distancia_us = 0, speedM1 = 0, speedM2 = 0;
-    uint16_t valueIR1 = 0, valueIR2 = 0;
+    uint32_t speedM1 = 0, speedM2 = 0,M1Anterior=0,M2Anterior=0;
+    uint16_t valueIR1 = 0, valueIR2 = 0,gradX = 0;
     int8_t anguloServo, count, auxAngulo, paso = 0;
     int posxT, posyT;
 };
